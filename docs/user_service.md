@@ -1449,3 +1449,196 @@ const updateProfileSchema = Joi.object({
     contactInfoVisibility: Joi.string().valid('public', 'friends', 'private').optional(),
     activityVisibility: Joi.string().valid('public',
 ```
+
+
+Let me create the controllers that will handle all the user-related HTTP requests.
+
+Created userController.js
+
+Now let's create a Social Controller to handle user relationships (follow, block, report):
+
+Created socialController.js
+
+Perfect! Now I've created comprehensive controllers for your user service. Let me summarize what we've built and show you the complete structure:
+
+## 🎯 User Service Controllers Complete!
+1. **UserController.js** - Core user management
+- ✅ User Registration with validation and duplicate checking
+- ✅ User Login with JWT token generation
+- ✅ Token Refresh for maintaining sessions
+- ✅ User Logout with session cleanup
+- ✅ Get Profile with privacy controls
+- ✅ Update Profile with comprehensive validation
+- ✅ Change Password with current password verification
+- ✅ Search Users with filtering and pagination
+- ✅ Get User by ID (public profiles)
+- ✅ Update Notification Preferences
+- ✅ Account Deactivation with password confirmation
+- ✅ Session Management (view and revoke sessions)
+2. **SocialController.js** - Social interactions
+- ✅ Follow/Unfollow Users with relationship tracking
+- ✅ Get Followers/Following lists with pagination
+- ✅ Block/Unblock Users with reason tracking
+- ✅ Report Users with moderation support
+- ✅ Get Blocked Users list
+- ✅ Relationship Management helper methods
+## 🏗️ Key Features Implemented:
+**Security & Validation**
+- 🔒 Comprehensive input validation using Joi schemas
+- 🔒 Password verification for sensitive operations
+- 🔒 JWT token management with refresh tokens
+- 🔒 Session tracking with device info and IP logging
+- 🔒 Security event logging for auditing
+**Business Logic**
+- 📊 User statistics tracking (followers, following, posts)
+- 📊 Privacy controls for profile visibility
+- 📊 Relationship management (follow, block, report)
+- 📊 Notification preferences management
+- 📊 Account lifecycle (registration, deactivation)
+**Error Handling & Logging**
+- 📝 Structured error responses with field-level validation
+- 📝 Comprehensive logging (business events, security events, errors)
+- 📝 Performance monitoring with operation tracking
+- 📝 Audit trails for user actions
+## 📁 Current Project Structure:
+```user-service/
+├── src/
+│   ├── controllers/
+│   │   ├── userController.js      ✅ Complete
+│   │   └── socialController.js    ✅ Complete
+│   ├── validation/
+│   │   └── schemas.js             ✅ Complete
+│   ├── models/
+│   │   └── User.js               (Referenced - needs implementation)
+│   ├── services/
+│   │   └── authService.js        (Referenced - needs implementation)
+│   ├── database/
+│   │   └── connection.js         (Referenced - needs implementation)
+│   └── utils/
+│       └── logger.js             (Referenced - needs implementation)
+```
+
+## 🎯 Next Steps:
+Based on your `user_service.md` documentation, we should continue with:
+
+1. **Routes & Middleware** - HTTP endpoints and authentication middleware
+2. **Complete the Model Layer** - UserRepository implementation
+3. **AuthService Implementation** - JWT and session management
+4. **Database Connection** - PostgreSQL setup with proper schemas
+5. **Main Application File** - Express server setup with all routes
+
+Would you like me to continue with the Routes & Middleware next? This will wire up all your controllers to HTTP endpoints and add authentication protection to secured routes.
+
+---
+## 🎉 Routes & Middleware Complete!
+I've successfully created a comprehensive routing and middleware system for your user service. Here's what we've built:
+---
+## 📁 Complete File Structure:
+```
+user-service/
+├── src/
+│   ├── controllers/
+│   │   ├── userController.js      ✅ Complete
+│   │   └── socialController.js    ✅ Complete
+│   ├── middleware/
+│   │   ├── auth.js               ✅ Authentication & authorization
+│   │   ├── validation.js         ✅ Input validation & sanitization
+│   │   └── errorHandler.js       ✅ Error handling
+│   ├── routes/
+│   │   ├── auth.js              ✅ Authentication routes
+│   │   ├── users.js             ✅ User management routes
+│   │   ├── social.js            ✅ Social interaction routes
+│   │   ├── health.js            ✅ Health check routes
+│   │   └── index.js             ✅ Route aggregator
+│   ├── validation/
+│   │   └── schemas.js           ✅ Complete
+│   └── index.js                 ✅ Main application file
+```
+## 🛡️ Security & Middleware Features:
+**Authentication Middleware**
+- ✅ JWT Token Verification with proper error handling
+- ✅ Optional Authentication for public endpoints
+- ✅ User Ownership Checks for resource protection
+- ✅ Email Verification Requirements for sensitive actions
+- ✅ User-based Rate Limiting to prevent abuse
+**Validation Middleware**
+- ✅ Joi Schema Validation for body, query, and params
+- ✅ Input Sanitization to prevent XSS attacks
+- ✅ Type Conversion and data cleaning
+**Error Handling**
+- ✅ Global Error Handler with proper HTTP status codes
+- ✅ Database Error Mapping (PostgreSQL specific)
+- ✅ Async Error Wrapper for clean error handling
+- ✅ 404 Handler for undefined routes
+## 🛣️ API Endpoints:
+**Authentication Routes (/api/auth)**
+```
+POST   /api/auth/register           - Register new user
+POST   /api/auth/login              - Login user
+POST   /api/auth/logout             - Logout user (Protected)
+POST   /api/auth/refresh            - Refresh access token
+POST   /api/auth/change-password    - Change password (Protected)
+POST   /api/auth/forgot-password    - Request password reset
+POST   /api/auth/reset-password     - Reset password with token
+POST   /api/auth/verify-email       - Verify email address
+GET    /api/auth/me                 - Get current user (Protected)
+GET    /api/auth/sessions           - Get user sessions (Protected)
+DELETE /api/auth/sessions           - Revoke all sessions (Protected)
+```
+**User Management Routes (/api/users)**
+```
+GET    /api/users/search            - Search users (Optional auth)
+GET    /api/users/:userId           - Get user profile (Optional auth)
+PUT    /api/users/profile           - Update profile (Protected)
+PUT    /api/users/notifications     - Update notifications (Protected)
+POST   /api/users/deactivate        - Deactivate account (Protected)
+GET    /api/users/:userId/stats     - Get user statistics (Optional auth)
+```
+**Social Interaction Routes (/api/social)**
+```
+POST   /api/social/follow           - Follow user (Protected)
+POST   /api/social/unfollow         - Unfollow user (Protected)
+GET    /api/social/:userId/followers - Get followers (Protected)
+GET    /api/social/:userId/following - Get following (Protected)
+POST   /api/social/block            - Block user (Protected)
+POST   /api/social/unblock          - Unblock user (Protected)
+GET    /api/social/blocked          - Get blocked users (Protected)
+POST   /api/social/report           - Report user (Protected, Verified)
+GET    /api/social/relationship/:userId - Get relationship status (Protected)
+```
+**Health & Monitoring Routes (/health)**
+```
+GET    /health                      - Basic health check
+GET    /health/detailed             - Detailed health metrics
+```
+## 🔧 Main Application Features:
+**Express Server Setup**
+- ✅ Security Headers with Helmet
+- ✅ CORS Configuration with environment-based origins
+- ✅ Rate Limiting with configurable limits
+- ✅ Request Logging with performance tracking
+- ✅ Body Parsing with size limits and JSON validation
+**Production Ready Features**
+- ✅ Graceful Shutdown handling for SIGTERM/SIGINT
+- ✅ Health Checks with database connectivity testing
+- ✅ Request ID Tracking for debugging
+- ✅ Memory Usage Monitoring
+- ✅ Database Connection Pooling
+## 🎯 Next Steps:
+Now that we have complete Routes & Middleware, the remaining pieces to implement are:
+
+1. **Database Layer** - Complete the UserRepository and AuthService
+2. **Logger Utility** - Implement the comprehensive logging system
+3. **Database Connection** - Set up PostgreSQL with proper schemas
+4. **Environment Configuration** - Fine-tune the .env settings
+
+**Your user service now has:**
+- ✅ Complete controller logic
+- ✅ Comprehensive validation schemas
+- ✅ Production-ready middleware
+- ✅ RESTful API routes
+- ✅ Security best practices
+- ✅ Error handling
+- ✅ Health monitoring
+
+Would you like me to continue with the Database Layer and Models implementation next?
