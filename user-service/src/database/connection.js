@@ -68,9 +68,7 @@ class Database {
       CREATE INDEX IF NOT EXISTS idx_users_username ON users(username);
       CREATE INDEX IF NOT EXISTS idx_users_created_at ON users(created_at);
       CREATE INDEX IF NOT EXISTS idx_users_active ON users(is_active) WHERE is_active = true;
-    `;
-
-    const createUserSessionsTable = `
+    `;    const createUserSessionsTable = `
       CREATE TABLE IF NOT EXISTS user_sessions (
         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
         user_id UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -79,12 +77,13 @@ class Database {
         ip_address INET,
         expires_at TIMESTAMP NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        
-        -- Add index for cleanup queries
-        INDEX idx_sessions_expires ON user_sessions(expires_at),
-        INDEX idx_sessions_user_id ON user_sessions(user_id)
+        last_used TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      -- Create indexes for user_sessions
+      CREATE INDEX IF NOT EXISTS idx_sessions_expires ON user_sessions(expires_at);
+      CREATE INDEX IF NOT EXISTS idx_sessions_user_id ON user_sessions(user_id);
+      CREATE INDEX IF NOT EXISTS idx_sessions_refresh_token ON user_sessions(refresh_token);
     `;
 
     const createUserProfilesTable = `

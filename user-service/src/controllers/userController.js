@@ -1,6 +1,8 @@
 // src/controllers/userController.js
 const UserRepository = require('../models/User');
 const AuthService = require('../services/authService');
+const emailService = require('../utils/emailService');
+const tokenUtils = require('../utils/tokenUtils');
 const logger = require('../utils/logger');
 const {
   registerSchema,

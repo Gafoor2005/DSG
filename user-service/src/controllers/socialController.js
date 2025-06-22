@@ -1,4 +1,5 @@
 // src/controllers/socialController.js
+const RelationshipRepository = require('../models/Relationship');
 const UserRepository = require('../models/User');
 const database = require('../database/connection');
 const logger = require('../utils/logger');
