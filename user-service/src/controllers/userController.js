@@ -98,37 +98,39 @@ class UserController {
   // Login user
   async login(req, res) {
     try {
-      // Validate input
-      const { error, value } = loginSchema.validate(req.body);
-      if (error) {
-        return res.status(400).json({
-          success: false,
-          message: 'Validation error',
-          errors: error.details.map(detail => ({
-            field: detail.path.join('.'),
-            message: detail.message
-          }))
-        });
-      }
+      console.log('🔍 Login controller started');
+      console.log('🔍 Request body:', { ...req.body, password: '[REDACTED]' });
+      
+      // req.body already validated by middleware, so we can use it directly
+      const { identifier, password, rememberMe } = req.body;
+      
+      console.log('🔍 Extracted data:', { identifier, rememberMe });
 
       // Extract device info
+      console.log('🔍 Extracting device info...');
       const deviceInfo = AuthService.extractDeviceInfo(req);
       const ipAddress = req.ip;
+      
+      console.log('🔍 Device info extracted:', { ipAddress, userAgent: deviceInfo?.userAgent });
 
       // Login user
+      console.log('🔍 Calling AuthService.login...');
       const result = await AuthService.login(
-        value.identifier,
-        value.password,
+        identifier,
+        password,
         deviceInfo,
         ipAddress
       );
+      
+      console.log('🔍 AuthService.login completed successfully');
 
       logger.authLogger('user_login', result.user.id, {
-        identifier: value.identifier,
+        identifier: identifier,
         ipAddress,
-        rememberMe: value.rememberMe
+        rememberMe: rememberMe
       });
 
+      console.log('🔍 Sending response...');
       res.json({
         success: true,
         message: 'Login successful',
@@ -148,8 +150,11 @@ class UserController {
           }
         }
       });
+      
+      console.log('🔍 Response sent successfully');
 
     } catch (error) {
+      console.log('🔍 Error in login controller:', error.message);
       logger.security('login_attempt_failed', {
         identifier: req.body.identifier,
         ipAddress: req.ip,

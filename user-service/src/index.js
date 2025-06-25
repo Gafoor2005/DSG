@@ -218,6 +218,11 @@ class UserService {
         }
       });
 
+      // Set server timeout settings to prevent request abortion
+      this.server.timeout = 120000; // 2 minutes timeout
+      this.server.keepAliveTimeout = 65000; // Keep-alive timeout
+      this.server.headersTimeout = 66000; // Headers timeout
+
       // Handle server errors
       this.server.on('error', (error) => {
         if (error.code === 'EADDRINUSE') {

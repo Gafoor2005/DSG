@@ -24,7 +24,7 @@ const {
 router.post('/register',
   validationMiddleware.sanitizeInput,
   validationMiddleware.validateBody(registerSchema),
-  errorHandler.asyncHandler(UserController.register)
+  errorHandler.asyncHandler(UserController.register.bind(UserController))
 );
 
 /**
@@ -35,7 +35,7 @@ router.post('/register',
 router.post('/login',
   validationMiddleware.sanitizeInput,
   validationMiddleware.validateBody(loginSchema),
-  errorHandler.asyncHandler(UserController.login)
+  errorHandler.asyncHandler(UserController.login.bind(UserController))
 );
 
 /**
@@ -45,7 +45,7 @@ router.post('/login',
  */
 router.post('/refresh',
   validationMiddleware.sanitizeInput,
-  errorHandler.asyncHandler(UserController.refreshToken)
+  errorHandler.asyncHandler(UserController.refreshToken.bind(UserController))
 );
 
 /**

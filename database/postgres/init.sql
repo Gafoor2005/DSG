@@ -133,6 +133,7 @@ CREATE TRIGGER update_relationships_updated_at
 
 -- Insert sample data (optional - for development)
 -- Uncomment the following lines if you want sample data
+-- but never use this, may cause errors ( e.g. password dosent satisfy the constraints )
 
 /*
 -- Sample users (passwords are 'password123' hashed with bcrypt)

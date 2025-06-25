@@ -109,7 +109,7 @@ start_infrastructure() {
 start_services() {
     echo -e "${YELLOW}🚀 Starting application services...${NC}"
     # docker-compose up -d user-service content-service notification-service chat-service analytics-service
-    
+    docker-compose up -d user-service
     echo -e "${YELLOW}⏳ Waiting for services to be ready...${NC}"
     sleep 15
     
