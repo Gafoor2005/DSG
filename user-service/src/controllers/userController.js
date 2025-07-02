@@ -4,6 +4,7 @@ const AuthService = require('../services/authService');
 const emailService = require('../utils/emailService');
 const tokenUtils = require('../utils/tokenUtils');
 const logger = require('../utils/logger');
+const { trackAuthAttempt } = require('../utils/metrics');
 const {
   registerSchema,
   loginSchema,
@@ -62,6 +63,9 @@ class UserController {
         ipAddress
       });
 
+      // Track successful registration
+      trackAuthAttempt('register', 'success');
+
       res.status(201).json({
         success: true,
         message: 'User registered successfully',
@@ -82,6 +86,7 @@ class UserController {
       });
 
     } catch (error) {
+      trackAuthAttempt('register', 'failure');
       logger.errorWithContext(error, { 
         operation: 'register_user',
         body: { ...req.body, password: '[REDACTED]' }
@@ -131,6 +136,9 @@ class UserController {
       });
 
       console.log('🔍 Sending response...');
+      // Track successful login
+      trackAuthAttempt('login', 'success');
+
       res.json({
         success: true,
         message: 'Login successful',
@@ -155,6 +163,7 @@ class UserController {
 
     } catch (error) {
       console.log('🔍 Error in login controller:', error.message);
+      trackAuthAttempt('login', 'failure');
       logger.security('login_attempt_failed', {
         identifier: req.body.identifier,
         ipAddress: req.ip,

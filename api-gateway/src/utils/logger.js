@@ -63,7 +63,7 @@ if (!fs.existsSync(logsDir)) {
 const logger = winston.createLogger({
   level: process.env.LOG_LEVEL || 'info',
   defaultMeta: { 
-    service: process.env.SERVICE_NAME || 'user-service',
+    service: process.env.SERVICE_NAME || 'api-gateway',
     version: process.env.npm_package_version || '1.0.0'
   },
   transports: [
@@ -131,88 +131,31 @@ logger.requestLogger = (req, res, next) => {
   logger.info('Incoming request', {
     method: req.method,
     url: req.url,
-    userAgent: req.get('User-Agent'),
     ip: req.ip,
+    userAgent: req.get('User-Agent'),
     userId: req.user?.id || 'anonymous'
   });
 
   // Override res.end to log response
   const originalEnd = res.end;
-  res.end = function(chunk, encoding) {
+  res.end = function(...args) {
     const duration = Date.now() - start;
     
+    // Log response
     logger.info('Request completed', {
       method: req.method,
       url: req.url,
       statusCode: res.statusCode,
       duration: `${duration}ms`,
-      contentLength: res.get('Content-Length') || 0,
+      contentLength: res.get('content-length') || 0,
       userId: req.user?.id || 'anonymous'
     });
 
-    originalEnd.call(this, chunk, encoding);
+    originalEnd.apply(this, args);
   };
 
   next();
 };
 
-// Database query logger
-logger.queryLogger = (query, params, duration) => {
-  if (process.env.NODE_ENV === 'development') {
-    logger.debug('Database query', {
-      query: query.replace(/\s+/g, ' ').trim(),
-      params,
-      duration: `${duration}ms`
-    });
-  }
-};
-
-// Auth event logger
-logger.authLogger = (event, userId, metadata = {}) => {
-  logger.info('Auth event', {
-    event,
-    userId,
-    timestamp: new Date().toISOString(),
-    ...metadata
-  });
-};
-
-// Error logger with context
-logger.errorWithContext = (error, context = {}) => {
-  logger.error('Application error', {
-    message: error.message,
-    stack: error.stack,
-    ...context
-  });
-};
-
-// Performance logger
-logger.performance = (operation, duration, metadata = {}) => {
-  const level = duration > 1000 ? 'warn' : 'info';
-  logger.log(level, 'Performance metric', {
-    operation,
-    duration: `${duration}ms`,
-    ...metadata
-  });
-};
-
-// Security event logger
-logger.security = (event, details = {}) => {
-  logger.warn('Security event', {
-    event,
-    timestamp: new Date().toISOString(),
-    ...details
-  });
-};
-
-// Business logic logger
-logger.business = (action, userId, details = {}) => {
-  logger.info('Business action', {
-    action,
-    userId,
-    timestamp: new Date().toISOString(),
-    ...details
-  });
-};
-
+// Export logger
 module.exports = logger;

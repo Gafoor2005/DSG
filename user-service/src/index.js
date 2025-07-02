@@ -142,6 +142,10 @@ class UserService {
     // Trust proxy (for accurate IP addresses behind load balancers)
     this.app.set('trust proxy', 1);
 
+    // Metrics middleware
+    const { httpMetricsMiddleware } = require('./utils/metrics');
+    this.app.use(httpMetricsMiddleware);
+
     // Request logging
     this.app.use(logger.requestLogger);
 
@@ -155,6 +159,17 @@ class UserService {
 
   setupRoutes() {
     logger.info('🛣️ Setting up routes...');
+
+    // Metrics endpoint
+    const { register } = require('./utils/metrics');
+    this.app.get('/metrics', async (req, res) => {
+      try {
+        res.set('Content-Type', register.contentType);
+        res.end(await register.metrics());
+      } catch (ex) {
+        res.status(500).end(ex);
+      }
+    });
 
     // Health check routes (before API routes)
     this.app.use('/health', healthRoutes);

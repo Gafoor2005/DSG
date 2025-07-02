@@ -51,79 +51,79 @@ services:
     networks:
       - social-network
 
-  # Content Service
-  content-service:
-    build: ./content-service
-    ports:
-      - "3002:3000"
-    environment:
-      - NODE_ENV=development
-      - MONGO_URL=mongodb://mongo:27017/content_db
-      - REDIS_URL=redis://redis:6379
-      - USER_SERVICE_URL=http://user-service:3001
-    depends_on:
-      - mongo
-      - redis
-    volumes:
-      - ./content-service:/app
-      - /app/node_modules
-    networks:
-      - social-network
+  # Content Service (Commented out - not implemented yet)
+  # content-service:
+  #   build: ./content-service
+  #   ports:
+  #     - "3002:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - MONGO_URL=mongodb://mongo:27017/content_db
+  #     - REDIS_URL=redis://redis:6379
+  #     - USER_SERVICE_URL=http://user-service:3001
+  #   depends_on:
+  #     - mongo
+  #     - redis
+  #   volumes:
+  #     - ./content-service:/app
+  #     - /app/node_modules
+  #   networks:
+  #     - social-network
 
-  # Notification Service
-  notification-service:
-    build: ./notification-service
-    ports:
-      - "3003:3000"
-    environment:
-      - NODE_ENV=development
-      - REDIS_URL=redis://redis:6379
-      - USER_SERVICE_URL=http://user-service:3001
-      - EMAIL_SERVICE_KEY=your-email-service-key
-    depends_on:
-      - redis
-    volumes:
-      - ./notification-service:/app
-      - /app/node_modules
-    networks:
-      - social-network
+  # Notification Service (Commented out - not implemented yet)
+  # notification-service:
+  #   build: ./notification-service
+  #   ports:
+  #     - "3003:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - REDIS_URL=redis://redis:6379
+  #     - USER_SERVICE_URL=http://user-service:3001
+  #     - EMAIL_SERVICE_KEY=your-email-service-key
+  #   depends_on:
+  #     - redis
+  #   volumes:
+  #     - ./notification-service:/app
+  #     - /app/node_modules
+  #   networks:
+  #     - social-network
 
-  # Chat Service
-  chat-service:
-    build: ./chat-service
-    ports:
-      - "3004:3000"
-    environment:
-      - NODE_ENV=development
-      - MONGO_URL=mongodb://mongo:27017/chat_db
-      - REDIS_URL=redis://redis:6379
-      - USER_SERVICE_URL=http://user-service:3001
-    depends_on:
-      - mongo
-      - redis
-    volumes:
-      - ./chat-service:/app
-      - /app/node_modules
-    networks:
-      - social-network
+  # Chat Service (Commented out - not implemented yet)
+  # chat-service:
+  #   build: ./chat-service
+  #   ports:
+  #     - "3004:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - MONGO_URL=mongodb://mongo:27017/chat_db
+  #     - REDIS_URL=redis://redis:6379
+  #     - USER_SERVICE_URL=http://user-service:3001
+  #   depends_on:
+  #     - mongo
+  #     - redis
+  #   volumes:
+  #     - ./chat-service:/app
+  #     - /app/node_modules
+  #   networks:
+  #     - social-network
 
-  # Analytics Service
-  analytics-service:
-    build: ./analytics-service
-    ports:
-      - "3005:3000"
-    environment:
-      - NODE_ENV=development
-      - MONGO_URL=mongodb://mongo:27017/analytics_db
-      - REDIS_URL=redis://redis:6379
-    depends_on:
-      - mongo
-      - redis
-    volumes:
-      - ./analytics-service:/app
-      - /app/node_modules
-    networks:
-      - social-network
+  # Analytics Service (Commented out - not implemented yet)
+  # analytics-service:
+  #   build: ./analytics-service
+  #   ports:
+  #     - "3005:3000"
+  #   environment:
+  #     - NODE_ENV=development
+  #     - MONGO_URL=mongodb://mongo:27017/analytics_db
+  #     - REDIS_URL=redis://redis:6379
+  #   depends_on:
+  #     - mongo
+  #     - redis
+  #   volumes:
+  #     - ./analytics-service:/app
+  #     - /app/node_modules
+  #   networks:
+  #     - social-network
 
   # PostgreSQL Database
   postgres:

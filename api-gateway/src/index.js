@@ -5,16 +5,53 @@ const rateLimit = require('express-rate-limit');
 const { createProxyMiddleware } = require('http-proxy-middleware');
 const redis = require('redis');
 const jwt = require('jsonwebtoken');
+const promClient = require('prom-client');
+const logger = require('./utils/logger');
 
 const app = express();
 const PORT = process.env.PORT || 3000;
+
+// Prometheus metrics setup
+const collectDefaultMetrics = promClient.collectDefaultMetrics;
+collectDefaultMetrics({ timeout: 5000 });
+
+// Custom metrics
+const httpRequestsTotal = new promClient.Counter({
+  name: 'http_requests_total',
+  help: 'Total number of HTTP requests',
+  labelNames: ['method', 'route', 'status_code', 'service']
+});
+
+const httpRequestDuration = new promClient.Histogram({
+  name: 'http_request_duration_seconds',
+  help: 'Duration of HTTP requests in seconds',
+  labelNames: ['method', 'route', 'status_code', 'service'],
+  buckets: [0.1, 0.5, 1, 2, 5]
+});
+
+const activeConnections = new promClient.Gauge({
+  name: 'active_connections',
+  help: 'Number of active connections',
+  labelNames: ['service']
+});
+
+const proxyErrors = new promClient.Counter({
+  name: 'proxy_errors_total',
+  help: 'Total number of proxy errors',
+  labelNames: ['target_service', 'error_type']
+});
 
 // Redis client for caching and session management
 const redisClient = redis.createClient({
   url: process.env.REDIS_URL || 'redis://localhost:6379'
 });
 
-redisClient.connect().catch(console.error);
+redisClient.connect().catch((error) => {
+  logger.error('Redis connection failed', { error: error.message, stack: error.stack });
+});
+
+// Apply request logging middleware
+app.use(logger.requestLogger);
 
 // Middleware
 app.use(helmet());
@@ -42,6 +79,53 @@ const limiter = rateLimit({
   message: 'Too many requests from this IP'
 });
 app.use(limiter);
+
+// Metrics middleware
+app.use((req, res, next) => {
+  const start = Date.now();
+  
+  // Track active connections
+  activeConnections.inc({ service: 'api-gateway' });
+  
+  // Override res.end to capture metrics
+  const originalEnd = res.end;
+  res.end = function(chunk, encoding) {
+    const duration = (Date.now() - start) / 1000;
+    const route = req.route?.path || req.path || 'unknown';
+    
+    // Record metrics
+    httpRequestsTotal.inc({
+      method: req.method,
+      route: route,
+      status_code: res.statusCode,
+      service: 'api-gateway'
+    });
+    
+    httpRequestDuration.observe({
+      method: req.method,
+      route: route,
+      status_code: res.statusCode,
+      service: 'api-gateway'
+    }, duration);
+    
+    // Decrease active connections
+    activeConnections.dec({ service: 'api-gateway' });
+    
+    originalEnd.call(this, chunk, encoding);
+  };
+  
+  next();
+});
+
+// Metrics endpoint
+app.get('/metrics', async (req, res) => {
+  try {
+    res.set('Content-Type', promClient.register.contentType);
+    res.end(await promClient.register.metrics());
+  } catch (ex) {
+    res.status(500).end(ex);
+  }
+});
 
 // Authentication middleware
 const authenticateToken = async (req, res, next) => {
@@ -86,7 +170,13 @@ const services = {  user: {
       '^/api/users': '/api'
     },
     onError: (err, req, res) => {
-      console.error('User service error:', err.message);
+      logger.error('User service proxy error', { 
+        error: err.message, 
+        code: err.code,
+        method: req.method,
+        url: req.url 
+      });
+      proxyErrors.inc({ target_service: 'user-service', error_type: err.code || 'unknown' });
       res.status(503).json({ error: 'User service unavailable' });
     }
   },
@@ -97,7 +187,12 @@ const services = {  user: {
       '^/api/content': ''
     },
     onError: (err, req, res) => {
-      console.error('Content service error:', err.message);
+      logger.error('Content service proxy error', { 
+        error: err.message, 
+        code: err.code,
+        method: req.method,
+        url: req.url 
+      });
       res.status(503).json({ error: 'Content service unavailable' });
     }
   },
@@ -108,7 +203,12 @@ const services = {  user: {
       '^/api/notifications': ''
     },
     onError: (err, req, res) => {
-      console.error('Notification service error:', err.message);
+      logger.error('Notification service proxy error', { 
+        error: err.message, 
+        code: err.code,
+        method: req.method,
+        url: req.url 
+      });
       res.status(503).json({ error: 'Notification service unavailable' });
     }
   },
@@ -119,7 +219,12 @@ const services = {  user: {
       '^/api/chat': ''
     },
     onError: (err, req, res) => {
-      console.error('Chat service error:', err.message);
+      logger.error('Chat service proxy error', { 
+        error: err.message, 
+        code: err.code,
+        method: req.method,
+        url: req.url 
+      });
       res.status(503).json({ error: 'Chat service unavailable' });
     }
   },
@@ -130,7 +235,12 @@ const services = {  user: {
       '^/api/analytics': ''
     },
     onError: (err, req, res) => {
-      console.error('Analytics service error:', err.message);
+      logger.error('Analytics service proxy error', { 
+        error: err.message, 
+        code: err.code,
+        method: req.method,
+        url: req.url 
+      });
       res.status(503).json({ error: 'Analytics service unavailable' });
     }
   }
@@ -148,15 +258,15 @@ app.use('/api/auth', createProxyMiddleware({
     '^/api/auth': '/api/auth'
   },
   onError: (err, req, res) => {
-    console.error('🚨 Auth service error:', {
-      message: err.message,
+    logger.error('Auth service proxy error', {
+      error: err.message,
       code: err.code,
       errno: err.errno,
       syscall: err.syscall,
-      originalUrl: req.originalUrl,
-      method: req.method,
-      timestamp: new Date().toISOString()
+      url: req.originalUrl,
+      method: req.method
     });
+    proxyErrors.inc({ target_service: 'user-service', error_type: err.code || 'auth_error' });
     if (!res.headersSent) {
       res.status(503).json({ 
         success: false,
@@ -167,20 +277,29 @@ app.use('/api/auth', createProxyMiddleware({
     }
   },
   onProxyReq: (proxyReq, req, res) => {
-    console.log(`🔄 [${new Date().toISOString()}] Proxying auth request: ${req.method} ${req.originalUrl} → ${proxyReq.path}`);
+    logger.info('Proxying auth request', {
+      method: req.method,
+      originalUrl: req.originalUrl,
+      proxyPath: proxyReq.path,
+      headers: req.headers
+    });
     
     // Set longer timeout on the proxy request
     proxyReq.setTimeout(60000, () => {
-      console.error('🚨 Proxy request timeout after 60 seconds');
+      logger.error('Proxy request timeout after 60 seconds', {
+        method: req.method,
+        originalUrl: req.originalUrl
+      });
       proxyReq.destroy();
     });
-    
-    // Log request info (no body since we're not parsing it)
-    console.log(`📤 Request headers:`, req.headers);
   },
   onProxyRes: (proxyRes, req, res) => {
-    console.log(`✅ [${new Date().toISOString()}] Auth response received: ${proxyRes.statusCode} for ${req.originalUrl}`);
-    console.log(`📥 Response headers:`, proxyRes.headers);
+    logger.info('Auth response received', {
+      statusCode: proxyRes.statusCode,
+      originalUrl: req.originalUrl,
+      method: req.method,
+      headers: proxyRes.headers
+    });
     
     // Log response body for debugging (only for small responses)
     let body = '';
@@ -191,21 +310,35 @@ app.use('/api/auth', createProxyMiddleware({
       if (body.length < 1000) { // Only log small responses
         try {
           const parsedBody = JSON.parse(body);
-          console.log(`📥 Response body:`, { ...parsedBody, data: parsedBody.data ? '...' : undefined });
+          logger.debug('Auth response body', { 
+            responseBody: { ...parsedBody, data: parsedBody.data ? '...' : undefined },
+            originalUrl: req.originalUrl
+          });
         } catch (e) {
-          console.log(`📥 Response body (raw):`, body.substring(0, 200));
+          logger.debug('Auth response body (raw)', { 
+            responseBody: body.substring(0, 200),
+            originalUrl: req.originalUrl
+          });
         }
       }
     });
   },
   onProxyReqError: (err, req, res) => {
-    console.error('🚨 Proxy request error:', err.message);
+    logger.error('Proxy request error', { 
+      error: err.message, 
+      method: req.method, 
+      originalUrl: req.originalUrl 
+    });
     if (!res.headersSent) {
       res.status(503).json({ error: 'Failed to reach authentication service' });
     }
   },
   onProxyResError: (err, req, res) => {
-    console.error('🚨 Proxy response error:', err.message);
+    logger.error('Proxy response error', { 
+      error: err.message, 
+      method: req.method, 
+      originalUrl: req.originalUrl 
+    });
     if (!res.headersSent) {
       res.status(503).json({ error: 'Error receiving response from authentication service' });
     }
@@ -220,7 +353,11 @@ app.use('/api/users', authenticateToken, createProxyMiddleware({
     '^/api/users': '/api/users'
   },
   onError: (err, req, res) => {
-    console.error('User service error:', err.message);
+    logger.error('User service proxy error', { 
+      error: err.message, 
+      method: req.method, 
+      url: req.url 
+    });
     res.status(503).json({ error: 'User service unavailable' });
   }
 }));
@@ -231,7 +368,11 @@ app.use('/api/social', authenticateToken, createProxyMiddleware({
     '^/api/social': '/api/social'
   },
   onError: (err, req, res) => {
-    console.error('Social service error:', err.message);
+    logger.error('Social service proxy error', { 
+      error: err.message, 
+      method: req.method, 
+      url: req.url 
+    });
     res.status(503).json({ error: 'Social service unavailable' });
   }
 }));
@@ -251,7 +392,11 @@ app.use('/ws/chat', createWSProxy({
   ws: true,
   changeOrigin: true,
   onError: (err, req, res) => {
-    console.error('Chat WebSocket error:', err.message);
+    logger.error('Chat WebSocket proxy error', { 
+      error: err.message, 
+      method: req.method, 
+      url: req.url 
+    });
   }
 }));
 
@@ -276,7 +421,13 @@ app.use((req, res, next) => {
 
 // Error handling middleware
 app.use((err, req, res, next) => {
-  console.error('Gateway error:', err);
+  logger.error('Gateway error', { 
+    error: err.message, 
+    stack: err.stack,
+    method: req.method,
+    url: req.url,
+    requestId: req.headers['x-request-id'] || 'unknown'
+  });
   res.status(500).json({ 
     error: 'Internal server error',
     requestId: req.headers['x-request-id'] || 'unknown'
@@ -290,20 +441,23 @@ app.use('*', (req, res) => {
 
 // Graceful shutdown
 process.on('SIGTERM', async () => {
-  console.log('SIGTERM received, shutting down gracefully');
+  logger.info('SIGTERM received, shutting down gracefully');
   await redisClient.quit();
   process.exit(0);
 });
 
 const server = app.listen(PORT, () => {
-  console.log(`🚀 API Gateway running on port ${PORT}`);
-  console.log(`🔗 Service endpoints:`);
-  console.log(`   Auth: /api/auth`);
-  console.log(`   Users: /api/users`);
-  console.log(`   Content: /api/content`);
-  console.log(`   Notifications: /api/notifications`);
-  console.log(`   Chat: /api/chat`);
-  console.log(`   Analytics: /api/analytics`);
+  logger.info('API Gateway started', { 
+    port: PORT,
+    endpoints: {
+      auth: '/api/auth',
+      users: '/api/users',
+      content: '/api/content',
+      notifications: '/api/notifications',
+      chat: '/api/chat',
+      analytics: '/api/analytics'
+    }
+  });
 });
 
 // Set server timeout to prevent request abortion
