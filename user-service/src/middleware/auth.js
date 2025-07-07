@@ -37,7 +37,7 @@ class AuthMiddleware {
       }
 
       // Check if user is active
-      if (!user.isActive) {
+      if (!user.is_active) {
         logger.security('inactive_user_access_attempt', {
           userId: user.id,
           ipAddress: req.ip
@@ -95,7 +95,7 @@ class AuthMiddleware {
         const decoded = AuthService.verifyAccessToken(token);
         const user = await UserRepository.findById(decoded.id);
 
-        if (user && user.isActive) {
+        if (user && user.is_active) {
           req.user = user;
           req.token = token;
         }
@@ -110,7 +110,7 @@ class AuthMiddleware {
 
   // Check if user is verified (email verification)
   requireVerified(req, res, next) {
-    if (!req.user.isVerified) {
+    if (!req.user.is_verified) {
       return res.status(403).json({
         success: false,
         message: 'Email verification required',
