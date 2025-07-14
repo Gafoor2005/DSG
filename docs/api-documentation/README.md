@@ -1,53 +1,170 @@
 # 🔌 API Documentation
 
-*This folder will contain API specifications, endpoint documentation, and integration guides for all microservices.*
+*This folder contains API specifications, endpoint documentation, and integration guides for all microservices in the DSG project.*
 
-## 📋 Planned Documentation
+## 📋 Current Documentation
 
-### Service APIs *(Coming Soon)*
+### Service APIs
 
-| Service | Document | Status | Priority |
-|---------|----------|--------|----------|
-| **User Service** | `user-service-api.md` | 🚧 Planned | High |
-| **Content Service** | `content-service-api.md` | 🚧 Planned | High |
-| **Chat Service** | `chat-service-api.md` | 🚧 Planned | Medium |
-| **Notification Service** | `notification-service-api.md` | 🚧 Planned | Medium |
-| **Analytics Service** | `analytics-service-api.md` | 🚧 Planned | Medium |
-| **Search Service** | `search-service-api.md` | 🚧 Planned | Low |
+| Service | Document | Implementation Status | Documentation Status |
+|---------|----------|----------------------|---------------------|
+| **User Service** | `user-endpoints.md` | ✅ Implemented | ✅ Documented |
+| **Authentication** | `auth-endpoints.md` | ✅ Implemented | ✅ Documented |
+| **Social Features** | `social-endpoints.md` | ✅ Implemented | ✅ Documented |
+| **Content Service** | `content-endpoints.md` | ❌ Not Implemented | ✅ Planned Features Listed |
+| **Chat Service** | `chat-endpoints.md` | ❌ Not Implemented | ✅ Planned Features Listed |
+| **Notification Service** | `notification-endpoints.md` | ❌ Not Implemented | ✅ Planned Features Listed |
 
-### Integration Guides *(Future)*
+### OpenAPI Specification
+- **Swagger Documentation**: `swagger.yaml` - Complete OpenAPI 3.0 specification for implemented endpoints
 
-| Guide | Description | Status |
-|-------|-------------|--------|
-| `authentication-flow.md` | JWT authentication and authorization | 🚧 Planned |
-| `service-integration.md` | Inter-service communication patterns | 🚧 Planned |
-| `websocket-api.md` | Real-time WebSocket API documentation | 🚧 Planned |
-| `error-handling.md` | Standard error codes and responses | 🚧 Planned |
+---
 
-## 🎯 Documentation Standards
+## 🎯 Implemented Endpoints
+
+### Authentication API (`/api/auth`)
+- ✅ **POST** `/register` - User registration
+- ✅ **POST** `/login` - User login
+- ✅ **POST** `/refresh` - Token refresh
+- ✅ **POST** `/logout` - User logout
+- ✅ **POST** `/forgot-password` - Password reset request
+- ✅ **POST** `/reset-password` - Reset password with token
+- ✅ **POST** `/verify-email` - Email verification
+- ✅ **POST** `/change-password` - Change password
+- ✅ **GET** `/sessions` - Get user sessions
+- ✅ **DELETE** `/sessions` - Revoke all sessions
+- ✅ **GET** `/me` - Get current user profile
+
+### User Management API (`/api/users`)
+- ✅ **GET** `/search` - Search users
+- ✅ **GET** `/:userId` - Get user profile by ID
+- ✅ **PUT** `/profile` - Update user profile
+- ✅ **PUT** `/notifications` - Update notification preferences
+- ✅ **POST** `/deactivate` - Deactivate account
+- ✅ **GET** `/:userId/stats` - Get user statistics
+
+### Social Features API (`/api/social`)
+- ✅ **POST** `/follow` - Follow user
+- ✅ **POST** `/unfollow` - Unfollow user
+- ✅ **GET** `/:userId/followers` - Get user followers
+- ✅ **GET** `/:userId/following` - Get user following
+- ✅ **POST** `/block` - Block user
+- ✅ **POST** `/unblock` - Unblock user
+- ✅ **GET** `/blocked` - Get blocked users
+- ✅ **POST** `/report` - Report user
+- ✅ **GET** `/relationship/:userId` - Get relationship status
+
+---
+
+---
+
+## 📚 Integration Guides
 
 ### API Documentation Format
-- **OpenAPI 3.0 Specification** (Swagger)
+- **OpenAPI 3.0 Specification** (`swagger.yaml`)
 - **Endpoint documentation** with examples
 - **Request/Response schemas**
 - **Authentication requirements**
 - **Error codes and messages**
 
-### Example Structure
-```markdown
-# Service Name API
+### Testing Tools
+- **Postman Collection**: `postman-collection.json` - Complete API testing collection
+- **Swagger UI**: Available at `/api-docs` when services are running
+- **Example Requests**: Included in each endpoint documentation
 
-## Authentication
-- JWT Bearer token required
-- Token format: `Bearer <token>`
+### Authentication Flow
+1. **Register**: Create new user account with email verification
+2. **Login**: Authenticate with email/username and password
+3. **Token Usage**: Include Bearer token in Authorization header
+4. **Token Refresh**: Use refresh token to get new access token
+5. **Logout**: Invalidate current session
 
-## Endpoints
+### Rate Limiting
+- **Authentication**: 5-10 requests per 15 minutes
+- **Search**: 100 requests per 15 minutes
+- **Social Actions**: 20-50 requests per 15 minutes
+- **Profile Updates**: 10 requests per 15 minutes
 
-### POST /api/users/register
-Register a new user account.
+---
 
-**Request Body:**
+## � Quick Start
+
+### 1. Import Postman Collection
+```bash
+# Import the postman-collection.json file into Postman
+# Set environment variables: base_url, access_token, refresh_token, user_id
+```
+
+### 2. View Swagger Documentation
+```bash
+# Start the user service
+cd user-service
+npm start
+
+# Visit: http://localhost:3000/api-docs
+```
+
+### 3. Test Authentication Flow
+```bash
+# 1. Register a new user
+POST /api/auth/register
+
+# 2. Login with credentials
+POST /api/auth/login
+
+# 3. Use token for authenticated requests
+Authorization: Bearer <access_token>
+```
+
+---
+
+## 📝 Documentation Standards
+
+### Request/Response Format
+All API responses follow this format:
 ```json
+{
+  "success": true|false,
+  "message": "Human-readable message",
+  "data": {
+    // Response data
+  },
+  "errors": [
+    // Validation errors (if any)
+  ]
+}
+```
+
+### Error Handling
+- **400**: Validation errors
+- **401**: Authentication required
+- **403**: Access denied
+- **404**: Resource not found
+- **409**: Resource conflict
+- **429**: Rate limit exceeded
+- **500**: Server error
+
+---
+
+## 🛠️ Development Notes
+
+### Adding New Endpoints
+1. Update route files in service
+2. Update corresponding documentation file
+3. Add to `swagger.yaml` specification
+4. Add to Postman collection
+5. Update this README
+
+### Documentation Maintenance
+- Keep documentation in sync with implementation
+- Use actual request/response examples
+- Include validation rules and constraints
+- Document rate limits and security requirements
+
+---
+
+**Last Updated**: July 14, 2025  
+**Documentation Version**: 1.0.0
 {
   "username": "string",
   "email": "string", 

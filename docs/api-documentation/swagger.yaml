@@ -1,0 +1,1044 @@
+openapi: 3.0.3
+info:
+  title: DSG Social Platform API
+  description: |
+    RESTful API for the DSG social platform microservices.
+    
+    ## Authentication
+    Most endpoints require JWT Bearer token authentication.
+    Include the token in the Authorization header: `Bearer <token>`
+    
+    ## Rate Limiting
+    API endpoints are rate limited to prevent abuse. Limits vary by endpoint.
+    
+    ## Error Handling
+    All errors follow a consistent format with success flag, message, and optional error details.
+  version: 1.0.0
+  contact:
+    name: DSG Development Team
+    email: dev@dsg.example.com
+  license:
+    name: MIT
+    url: https://opensource.org/licenses/MIT
+
+servers:
+  - url: http://localhost:3000
+    description: Development server
+  - url: https://api.dsg.example.com
+    description: Production server
+
+tags:
+  - name: Authentication
+    description: User authentication and session management
+  - name: Users
+    description: User profile management and search
+  - name: Social
+    description: Social features like following and blocking
+  - name: Health
+    description: Health check endpoints
+
+paths:
+  # Authentication Endpoints
+  /api/auth/register:
+    post:
+      tags:
+        - Authentication
+      summary: Register new user
+      description: Create a new user account with email verification
+      operationId: registerUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterRequest'
+            example:
+              email: alice@example.com
+              username: alice_dev
+              password: MySecure123!
+              firstName: Alice
+              lastName: Developer
+              dateOfBirth: "1995-03-20"
+              agreeToTerms: true
+      responses:
+        '201':
+          description: User registered successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          $ref: '#/components/responses/UserExists'
+        '429':
+          $ref: '#/components/responses/RateLimit'
+
+  /api/auth/login:
+    post:
+      tags:
+        - Authentication
+      summary: User login
+      description: Authenticate user with email/username and password
+      operationId: loginUser
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoginRequest'
+            example:
+              identifier: alice_dev
+              password: MySecure123!
+      responses:
+        '200':
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/AuthResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/InvalidCredentials'
+        '429':
+          $ref: '#/components/responses/RateLimit'
+
+  /api/auth/refresh:
+    post:
+      tags:
+        - Authentication
+      summary: Refresh access token
+      description: Get new access token using refresh token
+      operationId: refreshToken
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshRequest'
+      responses:
+        '200':
+          description: Token refreshed successfully
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TokenResponse'
+        '401':
+          $ref: '#/components/responses/InvalidToken'
+
+  /api/auth/logout:
+    post:
+      tags:
+        - Authentication
+      summary: Logout user
+      description: Invalidate current user session
+      operationId: logoutUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  /api/auth/me:
+    get:
+      tags:
+        - Authentication
+      summary: Get current user
+      description: Get current authenticated user profile
+      operationId: getCurrentUser
+      security:
+        - bearerAuth: []
+      responses:
+        '200':
+          description: Current user profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/UserProfile'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # User Management Endpoints
+  /api/users/search:
+    get:
+      tags:
+        - Users
+      summary: Search users
+      description: Search for users by username, name, or email
+      operationId: searchUsers
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: q
+          in: query
+          required: true
+          description: Search query
+          schema:
+            type: string
+            minLength: 1
+            maxLength: 100
+        - name: limit
+          in: query
+          description: Results per page
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 100
+            default: 20
+        - name: offset
+          in: query
+          description: Pagination offset
+          schema:
+            type: integer
+            minimum: 0
+            default: 0
+        - name: verified
+          in: query
+          description: Filter verified users only
+          schema:
+            type: boolean
+      responses:
+        '200':
+          description: Search results
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/UserSearchResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /api/users/{userId}:
+    get:
+      tags:
+        - Users
+      summary: Get user profile
+      description: Get user profile by ID
+      operationId: getUserProfile
+      security:
+        - bearerAuth: []
+        - {}
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: User profile
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/UserProfile'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '403':
+          $ref: '#/components/responses/PrivateProfile'
+
+  /api/users/profile:
+    put:
+      tags:
+        - Users
+      summary: Update profile
+      description: Update current user's profile
+      operationId: updateProfile
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateProfileRequest'
+      responses:
+        '200':
+          description: Profile updated successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        type: object
+                        properties:
+                          user:
+                            $ref: '#/components/schemas/UserProfile'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+
+  # Social Endpoints
+  /api/social/follow:
+    post:
+      tags:
+        - Social
+      summary: Follow user
+      description: Follow another user
+      operationId: followUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowRequest'
+      responses:
+        '200':
+          description: User followed successfully
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FollowResponse'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '409':
+          $ref: '#/components/responses/AlreadyFollowing'
+        '429':
+          $ref: '#/components/responses/RateLimit'
+
+  /api/social/unfollow:
+    post:
+      tags:
+        - Social
+      summary: Unfollow user
+      description: Unfollow a user
+      operationId: unfollowUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/FollowRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
+  /api/social/{userId}/followers:
+    get:
+      tags:
+        - Social
+      summary: Get user followers
+      description: Get list of users following the specified user
+      operationId: getUserFollowers
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User UUID
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: User followers
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FollowersResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
+  /api/social/{userId}/following:
+    get:
+      tags:
+        - Social
+      summary: Get user following
+      description: Get list of users that the specified user is following
+      operationId: getUserFollowing
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User UUID
+          schema:
+            type: string
+            format: uuid
+        - $ref: '#/components/parameters/limit'
+        - $ref: '#/components/parameters/offset'
+      responses:
+        '200':
+          description: Users being followed
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/FollowingResponse'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
+  /api/social/block:
+    post:
+      tags:
+        - Social
+      summary: Block user
+      description: Block another user
+      operationId: blockUser
+      security:
+        - bearerAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BlockRequest'
+      responses:
+        '200':
+          $ref: '#/components/responses/Success'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+        '429':
+          $ref: '#/components/responses/RateLimit'
+
+  /api/social/relationship/{userId}:
+    get:
+      tags:
+        - Social
+      summary: Get relationship status
+      description: Get relationship status between current user and specified user
+      operationId: getRelationshipStatus
+      security:
+        - bearerAuth: []
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          description: User UUID
+          schema:
+            type: string
+            format: uuid
+      responses:
+        '200':
+          description: Relationship status
+          content:
+            application/json:
+              schema:
+                allOf:
+                  - $ref: '#/components/schemas/ApiResponse'
+                  - type: object
+                    properties:
+                      data:
+                        $ref: '#/components/schemas/RelationshipStatus'
+        '401':
+          $ref: '#/components/responses/Unauthorized'
+        '404':
+          $ref: '#/components/responses/UserNotFound'
+
+  # Health Check
+  /api/health:
+    get:
+      tags:
+        - Health
+      summary: Health check
+      description: Check service health status
+      operationId: healthCheck
+      responses:
+        '200':
+          description: Service is healthy
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  status:
+                    type: string
+                    example: ok
+                  timestamp:
+                    type: string
+                    format: date-time
+                  service:
+                    type: string
+                    example: user-service
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      bearerFormat: JWT
+      description: JWT Bearer token authentication
+
+  parameters:
+    limit:
+      name: limit
+      in: query
+      description: Number of items per page
+      schema:
+        type: integer
+        minimum: 1
+        maximum: 100
+        default: 20
+    
+    offset:
+      name: offset
+      in: query
+      description: Pagination offset
+      schema:
+        type: integer
+        minimum: 0
+        default: 0
+
+  schemas:
+    # Base Response Schemas
+    ApiResponse:
+      type: object
+      required:
+        - success
+      properties:
+        success:
+          type: boolean
+          description: Whether the request was successful
+        message:
+          type: string
+          description: Human-readable message
+        data:
+          type: object
+          description: Response data
+
+    PaginationInfo:
+      type: object
+      properties:
+        total:
+          type: integer
+          description: Total number of items
+        limit:
+          type: integer
+          description: Items per page
+        offset:
+          type: integer
+          description: Current offset
+        hasMore:
+          type: boolean
+          description: Whether there are more items
+
+    # Authentication Schemas
+    RegisterRequest:
+      type: object
+      required:
+        - email
+        - username
+        - password
+        - firstName
+        - lastName
+        - agreeToTerms
+      properties:
+        email:
+          type: string
+          format: email
+          maxLength: 255
+          example: alice@example.com
+        username:
+          type: string
+          pattern: '^[a-zA-Z0-9_]+$'
+          minLength: 3
+          maxLength: 30
+          example: alice_dev
+        password:
+          type: string
+          minLength: 8
+          maxLength: 128
+          pattern: '^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)(?=.*[@$!%*?&])[A-Za-z\d@$!%*?&]'
+          example: MySecure123!
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z\s\-\']+$'
+          example: Alice
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z\s\-\']+$'
+          example: Developer
+        dateOfBirth:
+          type: string
+          format: date
+          example: "1995-03-20"
+        phone:
+          type: string
+          pattern: '^[+]?[1-9]?[0-9]{7,15}$'
+          example: "+1234567890"
+        agreeToTerms:
+          type: boolean
+          example: true
+
+    LoginRequest:
+      type: object
+      required:
+        - identifier
+        - password
+      properties:
+        identifier:
+          type: string
+          description: Email or username
+          example: alice_dev
+        password:
+          type: string
+          example: MySecure123!
+
+    RefreshRequest:
+      type: object
+      required:
+        - refreshToken
+      properties:
+        refreshToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+
+    AuthResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                user:
+                  $ref: '#/components/schemas/UserProfile'
+                tokens:
+                  $ref: '#/components/schemas/TokenInfo'
+
+    TokenResponse:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                tokens:
+                  $ref: '#/components/schemas/TokenInfo'
+
+    TokenInfo:
+      type: object
+      properties:
+        accessToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        refreshToken:
+          type: string
+          example: eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...
+        expiresIn:
+          type: integer
+          description: Access token expiration in seconds
+          example: 3600
+
+    # User Schemas
+    UserProfile:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        email:
+          type: string
+          format: email
+          example: alice@example.com
+        username:
+          type: string
+          example: alice_dev
+        firstName:
+          type: string
+          example: Alice
+        lastName:
+          type: string
+          example: Developer
+        bio:
+          type: string
+          maxLength: 500
+          example: Full-stack developer passionate about creating amazing UX
+        location:
+          type: string
+          maxLength: 255
+          example: San Francisco, CA
+        website:
+          type: string
+          format: uri
+          example: https://alice-dev.com
+        profilePicture:
+          type: string
+          format: uri
+          example: https://example.com/alice.jpg
+        coverPhoto:
+          type: string
+          format: uri
+          example: https://example.com/alice-cover.jpg
+        isEmailVerified:
+          type: boolean
+          example: true
+        isPhoneVerified:
+          type: boolean
+          example: false
+        isVerified:
+          type: boolean
+          example: false
+        isPrivate:
+          type: boolean
+          example: false
+        createdAt:
+          type: string
+          format: date-time
+          example: "2025-07-14T10:30:00.000Z"
+        lastLoginAt:
+          type: string
+          format: date-time
+          example: "2025-07-14T11:00:00.000Z"
+        stats:
+          $ref: '#/components/schemas/UserStats'
+
+    UserStats:
+      type: object
+      properties:
+        followerCount:
+          type: integer
+          example: 1250
+        followingCount:
+          type: integer
+          example: 380
+        postCount:
+          type: integer
+          example: 45
+
+    UpdateProfileRequest:
+      type: object
+      properties:
+        firstName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z\s\-\']+$'
+        lastName:
+          type: string
+          minLength: 1
+          maxLength: 100
+          pattern: '^[a-zA-Z\s\-\']+$'
+        bio:
+          type: string
+          maxLength: 500
+        location:
+          type: string
+          maxLength: 255
+        website:
+          type: string
+          format: uri
+          maxLength: 500
+        isPrivate:
+          type: boolean
+        language:
+          type: string
+          pattern: '^[a-z]{2}$'
+        timezone:
+          type: string
+
+    UserSearchResponse:
+      type: object
+      properties:
+        users:
+          type: array
+          items:
+            $ref: '#/components/schemas/UserProfile'
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    # Social Schemas
+    FollowRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+
+    BlockRequest:
+      type: object
+      required:
+        - userId
+      properties:
+        userId:
+          type: string
+          format: uuid
+          example: 550e8400-e29b-41d4-a716-446655440000
+        reason:
+          type: string
+          enum: [spam, harassment, inappropriate_content, impersonation, other]
+          example: spam
+
+    FollowResponse:
+      type: object
+      properties:
+        relationship:
+          $ref: '#/components/schemas/Relationship'
+        user:
+          $ref: '#/components/schemas/UserProfile'
+
+    Relationship:
+      type: object
+      properties:
+        id:
+          type: string
+          example: rel-123
+        followerId:
+          type: string
+          format: uuid
+        followingId:
+          type: string
+          format: uuid
+        relationshipType:
+          type: string
+          enum: [following, blocked]
+          example: following
+        createdAt:
+          type: string
+          format: date-time
+
+    FollowersResponse:
+      type: object
+      properties:
+        followers:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/UserProfile'
+              - type: object
+                properties:
+                  followedAt:
+                    type: string
+                    format: date-time
+                  isFollowingBack:
+                    type: boolean
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    FollowingResponse:
+      type: object
+      properties:
+        following:
+          type: array
+          items:
+            allOf:
+              - $ref: '#/components/schemas/UserProfile'
+              - type: object
+                properties:
+                  followedAt:
+                    type: string
+                    format: date-time
+                  isFollowingBack:
+                    type: boolean
+        pagination:
+          $ref: '#/components/schemas/PaginationInfo'
+
+    RelationshipStatus:
+      type: object
+      properties:
+        relationship:
+          type: object
+          properties:
+            isFollowing:
+              type: boolean
+              description: Current user follows the target user
+            isFollowedBy:
+              type: boolean
+              description: Target user follows the current user
+            isBlocked:
+              type: boolean
+              description: Current user has blocked the target user
+            isBlockedBy:
+              type: boolean
+              description: Target user has blocked the current user
+            canInteract:
+              type: boolean
+              description: Whether users can interact
+
+    # Error Schemas
+    ValidationError:
+      allOf:
+        - $ref: '#/components/schemas/ApiResponse'
+        - type: object
+          properties:
+            errors:
+              type: array
+              items:
+                type: object
+                properties:
+                  field:
+                    type: string
+                  message:
+                    type: string
+
+  responses:
+    Success:
+      description: Operation successful
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+
+    ValidationError:
+      description: Validation failed
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ValidationError'
+          example:
+            success: false
+            message: Validation failed
+            errors:
+              - field: email
+                message: Please provide a valid email address
+
+    Unauthorized:
+      description: Authentication required
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            success: false
+            message: Authentication required
+
+    InvalidCredentials:
+      description: Invalid login credentials
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            success: false
+            message: Invalid credentials
+
+    InvalidToken:
+      description: Invalid or expired token
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            success: false
+            message: Invalid or expired token
+
+    UserNotFound:
+      description: User not found
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            success: false
+            message: User not found
+
+    UserExists:
+      description: User already exists
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            success: false
+            message: User with this email already exists
+
+    PrivateProfile:
+      description: User profile is private
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            success: false
+            message: Access denied. User profile is private.
+
+    AlreadyFollowing:
+      description: Already following user
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            success: false
+            message: You are already following this user
+
+    RateLimit:
+      description: Rate limit exceeded
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ApiResponse'
+          example:
+            success: false
+            message: Too many requests. Please try again later.
+
+security:
+  - bearerAuth: []
